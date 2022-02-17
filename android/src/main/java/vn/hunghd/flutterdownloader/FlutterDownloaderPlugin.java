@@ -1,5 +1,8 @@
 package vn.hunghd.flutterdownloader;
 
+import static android.content.Context.DOWNLOAD_SERVICE;
+
+import android.app.DownloadManager;
 import android.content.ContentResolver;
 import android.content.ContentUris;
 import android.content.Context;
@@ -7,7 +10,11 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.net.Uri;
+import android.os.Environment;
 import android.provider.MediaStore;
+import android.webkit.CookieManager;
+import android.webkit.URLUtil;
+import android.widget.Toast;
 
 import androidx.core.app.NotificationManagerCompat;
 
@@ -68,6 +75,8 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
             registerCallback(call, result);
         } else if (call.method.equals("enqueue")) {
             enqueue(call, result);
+        } else if (call.method.equals("enqueueV2")) {
+            enqueueV2(call, result);
         } else if (call.method.equals("loadTasks")) {
             loadTasks(call, result);
         } else if (call.method.equals("loadTasksWithRawQuery")) {
@@ -155,6 +164,29 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
         List args = (List) call.arguments;
         callbackHandle = Long.parseLong(args.get(0).toString());
         result.success(null);
+    }
+
+    private void enqueueV2(MethodCall call, MethodChannel.Result result) {
+        String url = call.argument("url");
+        String contentDisposition = call.argument("contentDisposition");
+        String mimeType = call.argument("mimeType");
+        String userAgent = call.argument("userAgent");
+        DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
+        request.setMimeType(mimeType);
+        String cookies = CookieManager.getInstance().getCookie(url);
+        request.addRequestHeader("cookie", cookies);
+        request.addRequestHeader("User-Agent", userAgent);
+        request.setDescription("Downloading file...");
+        request.setTitle(URLUtil.guessFileName(url, contentDisposition, mimeType));
+        request.allowScanningByMediaScanner();
+        request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+        request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, URLUtil.guessFileName(url, contentDisposition, mimeType));
+        DownloadManager dm = (DownloadManager) context.getSystemService(DOWNLOAD_SERVICE);
+        dm.enqueue(request);
+        Toast.makeText(context, "Downloading...", Toast.LENGTH_LONG).show();
+        String taskId = "enqueueV2";
+        result.success(taskId);
+        sendUpdateProgress(taskId, DownloadStatus.ENQUEUED, 0);
     }
 
     private void enqueue(MethodCall call, MethodChannel.Result result) {

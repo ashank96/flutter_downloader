@@ -107,6 +107,30 @@ class FlutterDownloader {
     }
   }
 
+  ///Use this only when hitting a POST method based url to download a file in android
+  ///Takes contentDisposition, mimeType, userAgent and smartly downloads a file from the given POST url
+  static Future<String?> enqueueV2(
+      {required String url,
+      required String contentDisposition,
+      required String mimeType,
+      int? contentLength,
+      required String userAgent}) async {
+    assert(_initialized, 'FlutterDownloader.initialize() must be called first');
+    try {
+      String? taskId = await _channel.invokeMethod('enqueueV2', {
+        'url': url,
+        'mimeType': mimeType,
+        'userAgent': userAgent,
+        'contentDisposition': contentDisposition,
+        'contentLength': contentLength
+      });
+      return taskId;
+    } on PlatformException catch (e) {
+      print('Download task is failed with reason(${e.message})');
+      return null;
+    }
+  }
+
   ///
   /// Load all tasks from Sqlite database
   ///
